@@ -13,13 +13,20 @@ from pydantic import BaseModel
 
 # expected_origin = "http://67.87.75.128:3000"
 # expected_origin = "http://localhost:3000"
-expected_origin = "*"
+REACT_APP_URL = os.getenv("REACT_APP_URL")
+expected_origin = REACT_APP_URL if REACT_APP_URL else "http://localhost:3000"
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Configure CORS
-CORS(app, resources={r"/*": {"origins": expected_origin}})
+cors_config = {
+    "origins": expected_origin,
+    "methods": ["GET", "POST"],
+    "allow_headers": ["Content-Type", "Authorization"],
+    "supports_credentials": True
+}
+CORS(app, origins=cors_config["origins"], methods=cors_config["methods"], allow_headers=cors_config["allow_headers"], supports_credentials=cors_config["supports_credentials"])
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 PINECONE_API_KEY = '20cc2c7b-58cd-4cf0-a281-b0829edd9aec'
