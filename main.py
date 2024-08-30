@@ -19,10 +19,6 @@ NAMESPACE = "SWD-passages-openai"
 VECTOR_DIM = 1536
 PRINT_OUTPUT = True
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-# CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins
-
 # get api key from platform.openai.com
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
@@ -244,11 +240,14 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
 
     return final_answer
 
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 @app.route('/query', methods=['POST', 'OPTIONS'])
 def query_talmud():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS Preflight"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
         return response
@@ -275,16 +274,16 @@ def query_talmud():
     return jsonify({"response": response, "time_taken": elapsed_time})
 
 # Handle preflight requests
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
+# @app.after_request
+# def after_request(response):
+#     response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
+#     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+#     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+#     return response
 
-@app.route('/')
-def index():
-    return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
+# @app.route('/')
+# def index():
+#     return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5001)))
