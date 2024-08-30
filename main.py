@@ -241,8 +241,8 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
     return final_answer
 
 
-expected_origin = "http://67.87.75.128:3000"
-# expected_origin = "http://localhost:3000"
+# expected_origin = "http://67.87.75.128:3000"
+expected_origin = "http://localhost:3000"
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": expected_origin}})
