@@ -20,7 +20,7 @@ VECTOR_DIM = 1536
 PRINT_OUTPUT = True
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://rashi-project-frontend-7e99413b9edd.herokuapp.com"]}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 # CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins
 
 # get api key from platform.openai.com
