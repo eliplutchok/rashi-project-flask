@@ -247,7 +247,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 def query_talmud():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS Preflight"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+        response.headers.add("Access-Control-Allow-Origin", "*")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
         return response
