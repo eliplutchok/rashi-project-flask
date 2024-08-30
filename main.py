@@ -12,6 +12,7 @@ import httpx
 from pydantic import BaseModel
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 OPENAI_MODEL = 'text-embedding-ada-002'
 INDEX_NAME = 'talmud-test-index-openai'
 NAMESPACE = "SWD-passages-openai"
@@ -43,7 +44,14 @@ def get_index_endpoint(api_key, index_name):
 
     response = httpx.get(url, headers=headers)
     response.raise_for_status()  # Raises an error if the request fails
-    return response.json()["status"]["host"]
+    response_json = response.json()
+    print("Full response:", response_json)  # Debugging line
+
+    # Correctly access the 'host' key at the top level of the response
+    if "host" in response_json:
+        return response_json["host"]
+    else:
+        raise KeyError(f"'host' not found in the response: {response_json}")
 
 def upsert_vectors(api_key, index_endpoint, namespace, vectors):
     url = f"https://{index_endpoint}/vectors/upsert"
@@ -80,7 +88,7 @@ def query_vectors(api_key, index_endpoint, namespace, vector, top_k=10, filter=N
     return response.json()
 
 # Initialize Pinecone API key and get the index endpoint
-index_endpoint = get_index_endpoint(os.getenv("PINECONE_API_KEY"), INDEX_NAME)
+index_endpoint = get_index_endpoint(PINECONE_API_KEY, INDEX_NAME)
 
 def filter_query(query, model_name="gpt-4o", print_output=PRINT_OUTPUT):
     try:
@@ -105,7 +113,7 @@ def get_vdb_results(query, k=10):
 
     embedded_query = embed_text_openai(query, OPENAI_MODEL)
 
-    response = query_vectors(os.getenv("PINECONE_API_KEY"), index_endpoint, NAMESPACE, embedded_query, top_k=k)
+    response = query_vectors(PINECONE_API_KEY, index_endpoint, NAMESPACE, embedded_query, top_k=k)
 
     passages = []
     for result in response['matches']:
