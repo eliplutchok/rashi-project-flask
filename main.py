@@ -240,14 +240,18 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
 
     return final_answer
 
+
+expected_origin = "http://67.87.75.128:3000"
+# expected_origin = "http://localhost:3000"
+
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": expected_origin}})
 
 @app.route('/query', methods=['POST', 'OPTIONS'])
 def query_talmud():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS Preflight"})
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Origin", expected_origin)
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
         return response
