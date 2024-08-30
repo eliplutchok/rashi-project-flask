@@ -265,6 +265,15 @@ def query_talmud():
     # Include the time taken in the response
     return jsonify({"response": response, "time_taken": elapsed_time})
 
+@app.route('/query', methods=['POST', 'OPTIONS'])
+def query_talmud():
+    if request.method == 'OPTIONS':
+        response = jsonify({"message": "CORS Preflight"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+        return response
+
 # Handle preflight requests
 # @app.after_request
 # def after_request(response):
