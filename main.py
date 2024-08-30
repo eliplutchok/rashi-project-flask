@@ -12,7 +12,7 @@ import httpx
 from pydantic import BaseModel
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+PINECONE_API_KEY = '20cc2c7b-58cd-4cf0-a281-b0829edd9aec'
 OPENAI_MODEL = 'text-embedding-ada-002'
 INDEX_NAME = 'talmud-test-index-openai'
 NAMESPACE = "SWD-passages-openai"
@@ -287,4 +287,4 @@ def index():
     return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5001)))
