@@ -7,8 +7,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 import asyncio
 import httpx
 from pydantic import BaseModel
-
-import openai
 from langsmith.wrappers import wrap_openai
 from langsmith import traceable
 
