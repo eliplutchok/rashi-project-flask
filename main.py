@@ -242,7 +242,8 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
 
 
 # expected_origin = "http://67.87.75.128:3000"
-expected_origin = "http://localhost:3000"
+# expected_origin = "http://localhost:3000"
+expected_origin = "*"
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": expected_origin}})
@@ -277,13 +278,12 @@ def query_talmud():
     # Include the time taken in the response
     return jsonify({"response": response, "time_taken": elapsed_time})
 
-# Handle preflight requests
-# @app.after_request
-# def after_request(response):
-#     response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
-#     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-#     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-#     return response
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', expected_origin)
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # @app.route('/')
 # def index():
