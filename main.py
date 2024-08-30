@@ -2,15 +2,15 @@ from flask import Flask, jsonify
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-# import time
+import time
 # from pinecone.grpc import PineconeGRPC as Pinecone
-# import openai
-# from openai import OpenAI
-# import json as JSON
-# from langchain.embeddings.openai import OpenAIEmbeddings
-# import asyncio
-# import httpx
-# from pydantic import BaseModel
+import openai
+from openai import OpenAI
+import json as JSON
+from langchain.embeddings.openai import OpenAIEmbeddings
+import asyncio
+import httpx
+from pydantic import BaseModel
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = 'text-embedding-ada-002'
