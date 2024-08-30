@@ -11,6 +11,16 @@ import asyncio
 import httpx
 from pydantic import BaseModel
 
+# expected_origin = "http://67.87.75.128:3000"
+# expected_origin = "http://localhost:3000"
+expected_origin = "*"
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Configure CORS
+CORS(app, resources={r"/*": {"origins": expected_origin}})
+
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 PINECONE_API_KEY = '20cc2c7b-58cd-4cf0-a281-b0829edd9aec'
 OPENAI_MODEL = 'text-embedding-ada-002'
@@ -240,47 +250,33 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
 
     return final_answer
 
+# Initialize Pinecone API key and get the index endpoint
+index_endpoint = get_index_endpoint(PINECONE_API_KEY, INDEX_NAME)
 
-# expected_origin = "http://67.87.75.128:3000"
-# expected_origin = "http://localhost:3000"
-expected_origin = "*"
-
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": expected_origin}})
+def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
+    context = get_context_from_vdb(query, model_name)
+    filtered_context = filter_context(query, context, model_name)
+    final_answer = get_final_answer(filtered_context, query, model_name)
+    return final_answer
 
 @app.route('/query', methods=['GET'])
 def query_talmud():
-    if request.method == 'OPTIONS':
-        response = jsonify({"message": "CORS Preflight"})
-        response.headers.add("Access-Control-Allow-Origin", expected_origin)
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-        app.logger.info(f"CORS headers added: {response.headers}")
-        return response
-    
     query = request.args.get("query")
     if not query:
         return jsonify({"error": "Query is required"}), 400
     
     start_time = time.time()
     response = from_query_to_answer(query)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Time taken: {elapsed_time}")
+    elapsed_time = time.time() - start_time
 
-    # Include the time taken in the response
     return jsonify({"response": response, "time_taken": elapsed_time})
 
-# @app.after_request
-# def after_request(response):
-#     response.headers.add('Access-Control-Allow-Origin', expected_origin)
-#     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-#     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-#     return response
-
-# @app.route('/')
-# def index():
-#     return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5001)))
