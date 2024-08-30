@@ -271,6 +271,14 @@ def query_talmud():
 
     return jsonify({"response": response, "time_taken": elapsed_time})
 
+
+@app.before_request
+def before_request():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
