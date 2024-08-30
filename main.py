@@ -248,29 +248,22 @@ expected_origin = "*"
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": expected_origin}})
 
-@app.route('/query', methods=['POST', 'OPTIONS'])
+@app.route('/query', methods=['GET'])
 def query_talmud():
     if request.method == 'OPTIONS':
         response = jsonify({"message": "CORS Preflight"})
         response.headers.add("Access-Control-Allow-Origin", expected_origin)
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+        app.logger.info(f"CORS headers added: {response.headers}")
         return response
-
-    # Handle the POST request
-    # Start the timer
-    start_time = time.time()
-
-    data = request.json
-    query = data.get("query")
-
+    
+    query = request.args.get("query")
     if not query:
         return jsonify({"error": "Query is required"}), 400
-
-    # Call the from_query_to_answer function
+    
+    start_time = time.time()
     response = from_query_to_answer(query)
-
-    # End the timer
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken: {elapsed_time}")
