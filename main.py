@@ -244,27 +244,6 @@ def from_query_to_answer(query, model_name="gpt-4o-2024-08-06"):
 
     return final_answer
 
-@app.route('/query', methods=['POST'])
-def query_talmud():
-    # Start the timer
-    start_time = time.time()
-    
-    data = request.json
-    query = data.get("query")
-    
-    if not query:
-        return jsonify({"error": "Query is required"}), 400
-    
-    # Call the from_query_to_answer function
-    response = from_query_to_answer(query)
-    
-    # End the timer
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Time taken: {elapsed_time}")
-    # Include the time taken in the response
-    return jsonify({"response": response, "time_taken": elapsed_time})
-
 @app.route('/query', methods=['POST', 'OPTIONS'])
 def query_talmud():
     if request.method == 'OPTIONS':
@@ -273,6 +252,27 @@ def query_talmud():
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
         return response
+
+    # Handle the POST request
+    # Start the timer
+    start_time = time.time()
+
+    data = request.json
+    query = data.get("query")
+
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+
+    # Call the from_query_to_answer function
+    response = from_query_to_answer(query)
+
+    # End the timer
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Time taken: {elapsed_time}")
+
+    # Include the time taken in the response
+    return jsonify({"response": response, "time_taken": elapsed_time})
 
 # Handle preflight requests
 # @app.after_request
