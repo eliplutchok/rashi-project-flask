@@ -13,7 +13,7 @@ from langsmith import traceable
 
 # Environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-PINECONE_API_KEY = "20cc2c7b-58cd-4cf0-a281-b0829edd9aec"
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 
 # Configuration constants
 OPENAI_MODEL = 'text-embedding-ada-002'
@@ -41,7 +41,9 @@ USER_PROMPT_GET_QUERIES = (
     "The available metadata for this query is: {available_md}. You should use these filters when the user asks you to search in a specific book and/or page, "
     "or for a specific thing. Otherwise, you should set it to None. When using filters it is important to get the spelling correct. For page numbers they always have a number and either an 'a' or a 'b' after the number to indicate the side of the page (i.e., 2a or 5b). Here are the correct speellings of the books: {book_names}"
     "It's important that you avoid including unnecessary words like 'Talmud' or 'Gemara'. The main point is that these "
-    "queries should be optimized for searching through Talmud passages in a vector database. Here is the user's question: \n{query}"
+    "queries should be optimized for searching through Talmud passages in a vector database. "
+    "Another thing to note is that the queries should be in English so if the user includes any hebrew (they may write hebrew words in English letters), you should translate it to English. "
+    "Here is the user's question: \n{query}"
 )
 
 SYSTEM_PROMPT_FILTER_CONTEXT = "Your are an LLM that is proficient in Talmudic studies. Your job is to help users and follow instructions."
