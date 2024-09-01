@@ -9,7 +9,9 @@ import httpx
 from pydantic import BaseModel, create_model
 from typing import Union, Optional
 from langsmith.wrappers import wrap_openai
+from langsmith.run_helpers import get_current_run_tree
 from langsmith import traceable
+from langsmith import Client
 
 # Environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -63,13 +65,14 @@ POSSIBLE_BOOKS = [
     'Taanit', 'Moed Katan', 'Chagigah', 'Yevamot', 'Ketubot', 'Nedarim', 
     'Nazir', 'Sotah', 'Gittin', 'Shevuot', 'Avodah_Zarah', 'Horayot', 
     'Zevachim', 'Menachot', 'Chullin', 'Bekhorot', 'Arakhin', 'Temurah', 
-    'Keritot', 'Meilah', 'Tamid', 'Niddah','Hagigah', 'Rosh_Hashanah', 'Megillah',
+    'Keritot', 'Meilah', 'Niddah','Hagigah', 'Rosh_Hashanah', 'Megillah',
     'Moed_Katan', 'Bava_Kamma', 'Bava_Metzia', 'Bava_Batra', 'Sanhedrin', 'Makkot',
      ] 
 
 # OpenAI client initialization
-openai.api_key = OPENAI_API_KEY
-openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
+
+
+
 
 def embed_text_openai(text, model_name):
     embed = OpenAIEmbeddings(model=model_name, openai_api_key=OPENAI_API_KEY)
@@ -101,7 +104,7 @@ def upsert_vectors(api_key, index_endpoint, namespace, vectors):
     return response.json()
 
 @traceable
-def query_vectors(api_key, index_endpoint, namespace, vector, top_k=20, filter=None):
+def query_vectors(api_key, index_endpoint, namespace, vector, top_k=20, filter=None, run_id=""):
     url = f"https://{index_endpoint}/query"
     headers = {
         "Api-Key": api_key,
@@ -128,7 +131,7 @@ def query_vectors(api_key, index_endpoint, namespace, vector, top_k=20, filter=N
 index_endpoint = get_index_endpoint(PINECONE_API_KEY, INDEX_NAME)
 
 @traceable
-def filter_query(query, model_name="gpt-4o", print_output=PRINT_OUTPUT):
+def filter_query(query, model_name="gpt-4o", print_output=PRINT_OUTPUT, openai_client=None):
     try:
         response = openai_client.chat.completions.create(
             model=model_name,
@@ -170,7 +173,7 @@ def get_vdb_results(query, k=10, filter=None):
     return passages
 
 @traceable
-def get_queries_from_openai(query, model_name="gpt-4o", available_md=["book_name", "page_number"], print_output=PRINT_OUTPUT, num_queries=5):
+def get_queries_from_openai(query, model_name="gpt-4o", available_md=["book_name", "page_number"], print_output=PRINT_OUTPUT, num_queries=5, openai_client=None):
     filter_fields = {field: (Optional[str], None) for field in available_md}
     Filter = create_model('Filter', **filter_fields)
     
@@ -205,9 +208,9 @@ def get_queries_from_openai(query, model_name="gpt-4o", available_md=["book_name
         return ""
 
 @traceable
-def get_context_from_vdb(query, model_name="gpt-4o", k=10, print_output=PRINT_OUTPUT, filter=None, available_md=["book_name", "page_number"], num_queries=5):
+def get_context_from_vdb(query, model_name="gpt-4o", k=10, print_output=PRINT_OUTPUT, filter=None, available_md=["book_name", "page_number"], num_queries=5, openai_client=None):
     
-    queries = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_queries)
+    queries = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_queries, openai_client=openai_client)
     contexts = []
 
     if "filter" in queries:
@@ -226,7 +229,7 @@ def get_context_from_vdb(query, model_name="gpt-4o", k=10, print_output=PRINT_OU
 
 
 async def async_filter_context(query, context, model_name="gpt-4o-mini"):
-    async def filter_single_context(client, query, passage):
+    async def filter_single_context(client, query, passage, ):
         try:
             context = "Book: " + passage["book_name"] + ", Page: " + passage["page_number"] + "\n" + passage["english_text"]
             # print("context: ", context)
@@ -260,7 +263,7 @@ def filter_context(query, context, model_name="gpt-4o-mini"):
     return asyncio.run(async_filter_context(query, context, model_name))
 
 @traceable
-def get_final_answer(context, query, model_name="gpt-4o-2024-08-06", print_output=PRINT_OUTPUT):
+def get_final_answer(context, query, model_name="gpt-4o-2024-08-06", print_output=PRINT_OUTPUT, run_id="", openai_client=None):
     try:
         class FinalAnswer(BaseModel):
             answer: str
@@ -272,9 +275,13 @@ def get_final_answer(context, query, model_name="gpt-4o-2024-08-06", print_outpu
                 {"role": "system", "content": SYSTEM_PROMPT_FINAL_ANSWER},
                 {"role": "user", "content": USER_PROMPT_FINAL_ANSWER.format(query=query, context_json=JSON.dumps(context, indent=4))}
             ],
-            response_format=FinalAnswer
+            response_format=FinalAnswer,
         )
         final_answer = response.choices[0].message.parsed.model_dump()
+
+        # pre_signed_url = openai_client.create_presigned_feedback_token(run_id, "user_feedback")
+
+        # print(pre_signed_url)
 
         if print_output:
             print("final answer: ", final_answer)
@@ -286,12 +293,37 @@ def get_final_answer(context, query, model_name="gpt-4o-2024-08-06", print_outpu
 
 @traceable
 def from_query_to_answer(query, model_name="gpt-4o-2024-08-06", print_output=False, available_md=["book_name", "page_number"], k=40, num_queries=5):
-    context = get_context_from_vdb(query, model_name, k=k, print_output=print_output, available_md=available_md, num_queries=num_queries)
+
+    openai.api_key = OPENAI_API_KEY
+    openai_client = wrap_openai(
+        openai.OpenAI(api_key=OPENAI_API_KEY)
+        )
+    
+    run = get_current_run_tree()
+
+    context = get_context_from_vdb(query, model_name, k=k, print_output=print_output, available_md=available_md, num_queries=num_queries, openai_client=openai_client)
     filtered_context = filter_context(query, context, model_name)
     if not filtered_context:
-        return {
+        return [{
             "answer": "No relevant passages were found. Please note that there is a lot of randomness in the responses, so you may want to try again. You can also try again with different wording.",
             "relevant_passage_ids": []
-        }
-    final_answer = get_final_answer(filtered_context, query, model_name)
-    return final_answer
+        }, run.id]
+    final_answer = get_final_answer(filtered_context, query, model_name, openai_client=openai_client)
+
+    return [final_answer, run.id]
+
+
+def feedback_to_langsmith(run_id, score, comment):
+    try:
+        print(f"Feedback: run_id={run_id}, score={score}, comment={comment}")
+        feedback_client = Client()
+        feedback_client.create_feedback(
+            run_id=run_id,
+            key="user_feedback",
+            score=int(score),
+            comment=comment,
+        )
+        return "Feedback saved successfully"
+    except Exception as e:
+        print(f"Error saving feedback: {e}")
+        return "Failed to save feedback"
