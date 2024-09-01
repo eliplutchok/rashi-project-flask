@@ -13,7 +13,7 @@ from langsmith import traceable
 
 # Environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+PINECONE_API_KEY = "20cc2c7b-58cd-4cf0-a281-b0829edd9aec"
 
 # Configuration constants
 OPENAI_MODEL = 'text-embedding-ada-002'
@@ -39,7 +39,7 @@ USER_PROMPT_GET_QUERIES = (
     "You have the option to include a filter dict which will filter the vector results by additional metadata. "
     "The filter dict should look something like this (example): {{\"book_name\": {{\"$eq\": \"Berakhot\"}}, \"page_number\": {{\"$eq\": \"2a\"}}}}. "
     "The available metadata for this query is: {available_md}. You should use these filters when the user asks you to search in a specific book and/or page, "
-    "or for a specific thing. Otherwise, you should set it to None. "
+    "or for a specific thing. Otherwise, you should set it to None. When using filters it is important to get the spelling correct. For page numbers they always have a number and either an 'a' or a 'b' after the number to indicate the side of the page (i.e., 2a or 5b). Here are the correct speellings of the books: {book_names}"
     "It's important that you avoid including unnecessary words like 'Talmud' or 'Gemara'. The main point is that these "
     "queries should be optimized for searching through Talmud passages in a vector database. Here is the user's question: \n{query}"
 )
@@ -188,7 +188,7 @@ def get_queries_from_openai(query, model_name="gpt-4o", available_md=["book_name
             model=model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT_GET_QUERIES},
-                {"role": "user", "content": USER_PROMPT_GET_QUERIES.format(num_queries=num_queries, available_md=", ".join(available_md), query=query)}
+                {"role": "user", "content": USER_PROMPT_GET_QUERIES.format(num_queries=num_queries, available_md=", ".join(available_md), query=query, book_names=", ".join(POSSIBLE_BOOKS))},
             ],
             response_format=QueryResponse,
             
