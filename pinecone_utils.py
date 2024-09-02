@@ -3,7 +3,6 @@ import httpx
 from langsmith import traceable, Client
 import os
 import itertools
-from pinecone import ServerlessSpec
 import uuid
 from prompts import *
 from config import *
