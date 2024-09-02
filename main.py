@@ -3,52 +3,53 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import time
-from talmud_query import from_query_to_answer, feedback_to_langsmith
+from talmud_query.talmud_query import talmud_query_v1, talmud_query_v2, talmud_query_v2_light
+from talmud_query.feedback import feedback_to_langsmith
 import uuid
+import asyncio
 
 REACT_APP_URL = os.getenv("REACT_APP_URL")
-expected_origin = REACT_APP_URL if REACT_APP_URL else "http://localhost:3000"
+EXPECTED_ORIGIN = REACT_APP_URL if REACT_APP_URL else "http://localhost:3000"
 
 # Initialize Flask app
 app = Flask(__name__)
-
 # Configure CORS
 cors_config = {
-    "origins": expected_origin,
+    "origins": EXPECTED_ORIGIN,
     "methods": ["GET", "POST"],
     "allow_headers": ["Content-Type", "Authorization"],
     "supports_credentials": True
 }
 CORS(app, origins=cors_config["origins"], methods=cors_config["methods"], allow_headers=cors_config["allow_headers"], supports_credentials=cors_config["supports_credentials"])
 
+@app.route('/')
+def index():
+    return jsonify({
+        "message": "Welcome to the Rashi Project API"
+    })
+
 @app.route('/feedback', methods=['GET'])
 def query_feedback():
-    score = request.args.get("score")
-    comment = request.args.get("comment")
-    run_id = request.args.get("run_id")
+    score, comment, run_id = request.args.get("score"), request.args.get("comment"), request.args.get("run_id")
     
     if not score:
         return jsonify({"error": "Score or comment is required"}), 400
     if not run_id:
         return jsonify({"error": "Run ID is required"}), 400
     
-    # Save feedback to database
-    x = feedback_to_langsmith(run_id, score, comment)
-    print(x)
+    feedback_to_langsmith(run_id, score, comment)
+    
     return jsonify({
         "success": True
     })
 
 @app.route('/query', methods=['GET'])
-def query_talmud():
+async def query_talmud():
     query = request.args.get("query")
     if not query:
         return jsonify({"error": "Query is required"}), 400
     
-    start_time = time.time()
-    response = from_query_to_answer(query)
-    elapsed_time = time.time() - start_time
-    print(f"Query took {elapsed_time} seconds")
+    response = await talmud_query_v2(query)
 
     answer = response[0]["answer"] if response and response[0] else None
     relevant_passage_ids = response[0]["relevant_passage_ids"] if response and response[0] else None
@@ -60,14 +61,10 @@ def query_talmud():
         "run_id": run_id
     })
 
-
-
-
 @app.before_request
 def before_request():
     if request.method == 'OPTIONS':
         return '', 200
-
 
 @app.after_request
 def after_request(response):
