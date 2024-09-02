@@ -44,7 +44,7 @@ def query_talmud():
     if not query:
         return jsonify({"error": "Query is required"}), 400
     
-    response = talmud_query_v2(query)
+    response = talmud_query_v1(query)
 
     answer = response[0]["answer"] if response and response[0] else None
     relevant_passage_ids = response[0]["relevant_passage_ids"] if response and response[0] else None
