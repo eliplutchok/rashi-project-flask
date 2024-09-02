@@ -4,9 +4,9 @@ from langsmith import traceable, Client
 import os
 import itertools
 import uuid
-from prompts import *
-from config import *
-from embed_utils import embed_text_openai
+from talmud_query.prompts import *
+from talmud_query.config import *
+from talmud_query.embed_utils import embed_text_openai
 
 def get_index_endpoint(api_key=PINECONE_API_KEY, index_name=INDEX_NAME):
     url = f"https://api.pinecone.io/indexes/{index_name}"

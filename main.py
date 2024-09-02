@@ -3,8 +3,8 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import time
-from talmud_query import talmud_query_v1, talmud_query_v2
-from feedback import feedback_to_langsmith
+from talmud_query.talmud_query import talmud_query_v1, talmud_query_v2
+from talmud_query.feedback import feedback_to_langsmith
 import uuid
 import asyncio
 
