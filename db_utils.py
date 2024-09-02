@@ -1,4 +1,4 @@
-from talmud_query.db import get_connection, release_connection
+from db import get_connection, release_connection
 
 # Step 1: Fetch all passages from the database for books that do NOT include "rashi" in their name
 def fetch_passages():

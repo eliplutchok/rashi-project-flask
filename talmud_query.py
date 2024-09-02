@@ -7,7 +7,7 @@ from typing import Union, Optional
 from langsmith.wrappers import wrap_openai
 from langsmith.run_helpers import get_current_run_tree
 from langsmith import traceable, Client
-from talmud_query.prompts import (
+from prompts import (
     SYSTEM_PROMPT_FILTER_QUERY,
     USER_PROMPT_FILTER_QUERY,
     SYSTEM_PROMPT_GET_QUERIES,
@@ -17,9 +17,9 @@ from talmud_query.prompts import (
     SYSTEM_PROMPT_FINAL_ANSWER,
     USER_PROMPT_FINAL_ANSWER,
 )
-from talmud_query.config import OPENAI_API_KEY, PRINT_OUTPUT, POSSIBLE_BOOKS
-from talmud_query.pinecone_utils import get_context_from_pinecone_vdb, get_context_async, get_context_from_pinecone_vdb_v2
-from talmud_query.embed_utils import embed_text_openai_batch
+from config import OPENAI_API_KEY, PRINT_OUTPUT, POSSIBLE_BOOKS
+from pinecone_utils import get_context_from_pinecone_vdb, get_context_async, get_context_from_pinecone_vdb_v2
+from embed_utils import embed_text_openai_batch
 
 @traceable
 def filter_query(query, model_name="gpt-4o", print_output=PRINT_OUTPUT, openai_client=None):

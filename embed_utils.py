@@ -1,6 +1,6 @@
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langsmith import traceable
-from talmud_query.config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL
+from config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL
 
 def embed_text_openai(text, model_name=OPENAI_EMBEDDING_MODEL):
     embed = OpenAIEmbeddings(model=model_name, openai_api_key=OPENAI_API_KEY)
