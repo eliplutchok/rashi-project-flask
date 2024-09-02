@@ -3,7 +3,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import time
-from talmud_query.talmud_query import talmud_query_v1, talmud_query_v2, talmud_query_v2_light
+from talmud_query.talmud_query import talmud_query_v1, talmud_query_v2
 from talmud_query.feedback import feedback_to_langsmith
 import uuid
 import asyncio
@@ -39,12 +39,12 @@ def query_feedback():
     })
 
 @app.route('/query', methods=['GET'])
-async def query_talmud():
+def query_talmud():
     query = request.args.get("query")
     if not query:
         return jsonify({"error": "Query is required"}), 400
     
-    response = await talmud_query_v2(query)
+    response = talmud_query_v2(query)
 
     answer = response[0]["answer"] if response and response[0] else None
     relevant_passage_ids = response[0]["relevant_passage_ids"] if response and response[0] else None

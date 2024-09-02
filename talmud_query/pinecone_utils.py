@@ -109,8 +109,7 @@ def query_vectors(vector, api_key=PINECONE_API_KEY, index_endpoint=None, namespa
     return response.json()
 
 @traceable
-def get_pinecone_vdb_results(embedded_query, index_name, name_space, k=10, filter=None):
-    index_endpoint = get_index_endpoint(index_name=index_name)
+def get_pinecone_vdb_results(embedded_query, index_endpoint, name_space, k=10, filter=None):
     
     response = query_vectors(embedded_query, index_endpoint=index_endpoint, namespace=name_space, top_k=k, filter=filter)
 
@@ -137,11 +136,33 @@ def get_context_from_pinecone_vdb(queries, index_name, namespace, k=10, print_ou
 
     filter = queries["filter"] if "filter" in queries else None
 
+    index_endpoint = get_index_endpoint(api_key=PINECONE_API_KEY, index_name=index_name)
+
     for key in queries:
         if key.startswith("query"):
             embedded_query = embed_text_openai(queries[key])
-            context = get_pinecone_vdb_results(embedded_query, index_name, namespace, k, filter=filter)
+            context = get_pinecone_vdb_results(embedded_query, index_endpoint, namespace, k, filter=filter)
             contexts.extend(context)
+
+    # Remove duplicates
+    contexts = [dict(t) for t in {tuple(d.items()) for d in contexts}]
+    
+    if print_output:
+        print("Number of contexts: ", len(contexts))
+    return contexts
+
+async def get_context_async(query, index_name, namespace, k, print_output):
+    return get_context_from_pinecone_vdb(query, index_name, namespace, k, print_output=print_output)
+
+@traceable
+def get_context_from_pinecone_vdb_v2(embedded_queries, filter, index_name, namespace, k=10, print_output=PRINT_OUTPUT):
+    contexts = []
+
+    index_endpoint = get_index_endpoint(api_key=PINECONE_API_KEY, index_name=index_name)
+
+    for query in embedded_queries:
+        context = get_pinecone_vdb_results(query, index_endpoint, namespace, k, filter=filter)
+        contexts.extend(context)
 
     # Remove duplicates
     contexts = [dict(t) for t in {tuple(d.items()) for d in contexts}]
