@@ -1,16 +1,8 @@
-import openai
-import json as JSON
-from langchain.embeddings.openai import OpenAIEmbeddings
-import asyncio
+
 import httpx
-from pydantic import BaseModel, create_model
-from typing import Union, Optional, List
-from langsmith.wrappers import wrap_openai
-from langsmith.run_helpers import get_current_run_tree
 from langsmith import traceable, Client
 import os
 import itertools
-from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 import uuid
 from prompts import *
@@ -30,60 +22,6 @@ def get_index_endpoint(api_key=PINECONE_API_KEY, index_name=INDEX_NAME):
     else:
         raise KeyError(f"'host' not found in the response: {response_json}")
 
-def upsert_vectors(vectors, api_key=PINECONE_API_KEY, index_endpoint=None, namespace=NAMESPACE):
-    url = f"https://{index_endpoint}/vectors/upsert"
-    headers = {
-        "Api-Key": api_key,
-        "Content-Type": "application/json"
-    }
-    data = {"vectors": vectors, "namespace": namespace}
-
-    response = httpx.post(url, headers=headers, json=data)
-    response.raise_for_status()
-    return response.json()
-
-def chunks(iterable, batch_size=200):
-    """A helper function to break an iterable into chunks of size batch_size."""
-    it = iter(iterable)
-    chunk = tuple(itertools.islice(it, batch_size))
-    while chunk:
-        yield chunk
-        chunk = tuple(itertools.islice(it, batch_size))
-
-def store_pinecone_embeddings_in_batches(embeddings, index_name, namespace, batch_size=200):
-    pc = Pinecone(os.environ.get("PINECONE_API_KEY"), pool_threads=30)
-    if index_name not in pc.list_indexes().names():
-        pc.create_index(
-            name=index_name,
-            dimension=len(embeddings[0]['embedding']), 
-            metric="cosine",
-            spec=ServerlessSpec(
-                cloud='aws', 
-                region='us-east-1'
-            )
-        ) 
-
-    index = pc.Index(index_name)
-
-    # Prepare the data to be upserted in chunks
-    for chunk in chunks(embeddings, batch_size):
-        data_to_upsert = [
-            (
-                str(uuid.uuid4()),
-                item['embedding'], 
-                # rest of the fields as metadata (no hardcoding)
-                {key: item[key] for key in item if key != 'embedding'}
-            ) 
-            for item in chunk
-        ]
-        
-        # Upsert data into Pinecone asynchronously to handle large batches
-        async_result = index.upsert(vectors=data_to_upsert, namespace=namespace, async_req=True)
-        
-        # Wait for the async request to complete
-        async_result.result()  # Use `.result()` instead of `.get()`
-
-    print(f"Embeddings stored successfully in batches of {batch_size} in Pinecone.")
 
 @traceable
 def query_vectors(vector, api_key=PINECONE_API_KEY, index_endpoint=None, namespace=None, top_k=20, filter=None, run_id=""):
