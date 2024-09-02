@@ -22,11 +22,6 @@ cors_config = {
 }
 CORS(app, origins=cors_config["origins"], methods=cors_config["methods"], allow_headers=cors_config["allow_headers"], supports_credentials=cors_config["supports_credentials"])
 
-@app.route('/')
-def index():
-    return jsonify({
-        "message": "Welcome to the Rashi Project API"
-    })
 
 @app.route('/feedback', methods=['GET'])
 def query_feedback():
