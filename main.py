@@ -17,18 +17,11 @@ load_dotenv()
 
 REACT_APP_URL = os.getenv("REACT_APP_URL")
 BACKEND_JS_URL = os.getenv("BACKEND_JS_URL")
-EXPECTED_ORIGIN = BACKEND_JS_URL
 
 # Initialize Flask app
 app = Flask(__name__)
-# Configure CORS
-cors_config = {
-    "origins": [EXPECTED_ORIGIN],  # Use a list here
-    "methods": ["GET", "POST"],
-    "allow_headers": ["Content-Type", "Authorization"],
-    "supports_credentials": True
-}
-CORS(app, **cors_config)  # Use the unpacking operator to pass the config
+# Configure CORS to allow all origins
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 def require_api_key(f):
     @wraps(f)
