@@ -1,7 +1,7 @@
 import os
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+OPENAI_API_KEY = "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"
+PINECONE_API_KEY = "20cc2c7b-58cd-4cf0-a281-b0829edd9aec"
 
 # Configuration constants
 OPENAI_MODEL = 'text-embedding-ada-002'

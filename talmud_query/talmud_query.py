@@ -21,6 +21,12 @@ from talmud_query.config import OPENAI_API_KEY, PRINT_OUTPUT, POSSIBLE_BOOKS
 from talmud_query.pinecone_utils import get_context_from_pinecone_vdb, get_context_async, get_context_from_pinecone_vdb_v2
 from talmud_query.embed_utils import embed_text_openai_batch
 
+# load env variables
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 @traceable
 def filter_query(query, model_name="gpt-4o", print_output=PRINT_OUTPUT, openai_client=None):
     try:
@@ -179,8 +185,6 @@ def talmud_query_v2(
     
     openai.api_key = OPENAI_API_KEY
     openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
-    
-    run = get_current_run_tree()
 
     query_alts = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_alt_queries, openai_client=openai_client)   
     filter = query_alts.get("filter")
@@ -202,6 +206,8 @@ def talmud_query_v2(
     # Filter context asynchronously
     filtered_context = filter_context(query, context, model_name)
     print(f"Number of filtered passages: {len(filtered_context)}")
+
+    run = get_current_run_tree()
     
     if not filtered_context:
         return [{

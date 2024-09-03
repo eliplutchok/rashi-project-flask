@@ -7,23 +7,40 @@ from talmud_query.talmud_query import talmud_query_v1, talmud_query_v2
 from talmud_query.feedback import feedback_to_langsmith
 import uuid
 import asyncio
+from functools import wraps
+
+# Get environment variables
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 REACT_APP_URL = os.getenv("REACT_APP_URL")
-EXPECTED_ORIGIN = REACT_APP_URL if REACT_APP_URL else "http://localhost:3000"
+BACKEND_JS_URL = os.getenv("BACKEND_JS_URL")
+EXPECTED_ORIGIN = BACKEND_JS_URL
 
 # Initialize Flask app
 app = Flask(__name__)
 # Configure CORS
 cors_config = {
-    "origins": EXPECTED_ORIGIN,
+    "origins": [EXPECTED_ORIGIN],  # Use a list here
     "methods": ["GET", "POST"],
     "allow_headers": ["Content-Type", "Authorization"],
     "supports_credentials": True
 }
-CORS(app, origins=cors_config["origins"], methods=cors_config["methods"], allow_headers=cors_config["allow_headers"], supports_credentials=cors_config["supports_credentials"])
+CORS(app, **cors_config)  # Use the unpacking operator to pass the config
 
+def require_api_key(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+        if api_key != os.getenv('API_KEY'):
+            return jsonify({"error": "Invalid API key"}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 @app.route('/feedback', methods=['GET'])
+@require_api_key
 def query_feedback():
     score, comment, run_id = request.args.get("score"), request.args.get("comment"), request.args.get("run_id")
     
@@ -39,6 +56,7 @@ def query_feedback():
     })
 
 @app.route('/query', methods=['GET'])
+@require_api_key
 def query_talmud():
     query = request.args.get("query")
     if not query:
@@ -60,13 +78,6 @@ def query_talmud():
 def before_request():
     if request.method == 'OPTIONS':
         return '', 200
-
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5001)))
