@@ -158,3 +158,4 @@ pip-selfcheck.json
 
 pincone_insert_utils.py
 insert_data.ipynb
+talmud_query/config.py
