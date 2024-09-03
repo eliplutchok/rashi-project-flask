@@ -101,7 +101,7 @@ async def async_filter_context(query, context, model_name="gpt-4o-mini", text_fi
             return passage if raw_text.strip() == "YES" else None
         except Exception as e:
             print(f"Error filtering passage: {e}")
-            return None
+            return passage
 
     async with httpx.AsyncClient() as client:
         tasks = [filter_single_context(client, query, passage) for passage in context]
@@ -149,6 +149,7 @@ def talmud_query_v1(
 ):
     index_name = "talmud-test-index-openai"
     namespace = "SWD-passages-openai"
+    
     openai.api_key = OPENAI_API_KEY
     openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
     
@@ -156,7 +157,7 @@ def talmud_query_v1(
 
     query_alts = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_alt_queries, openai_client=openai_client)
     context = get_context_from_pinecone_vdb(query_alts, index_name, namespace, k, print_output=print_output)
-    filtered_context = filter_context(query, context, model_name)
+    filtered_context = filter_context(query, context)
     
     if not filtered_context:
         return [{
@@ -174,7 +175,7 @@ def talmud_query_v2(
     model_name="gpt-4o-2024-08-06", 
     print_output=False, 
     available_md=["book_name", "page_number"], 
-    k=30, 
+    k=40, 
     num_alt_queries=4
 ):
     index_name = "talmud-test-index-openai"
@@ -204,7 +205,7 @@ def talmud_query_v2(
 
     print(f"Number of unique passages: {len(context)}")
     # Filter context asynchronously
-    filtered_context = filter_context(query, context, model_name)
+    filtered_context = filter_context(query, context)
     print(f"Number of filtered passages: {len(filtered_context)}")
 
     run = get_current_run_tree()
