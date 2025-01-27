@@ -16,11 +16,13 @@ from talmud_query.prompts import (
     USER_PROMPT_FILTER_CONTEXT,
     SYSTEM_PROMPT_FINAL_ANSWER,
     USER_PROMPT_FINAL_ANSWER,
+    SYSTEM_PROMPT_DEEP_QUERIES,
+    USER_PROMPT_DEEP_QUERIES    
 )
-from talmud_query.config import OPENAI_API_KEY, PRINT_OUTPUT, POSSIBLE_BOOKS
+from talmud_query.config import OPENAI_API_KEY, PRINT_OUTPUT, POSSIBLE_BOOKS, DB_CONFIGS
 from talmud_query.pinecone_utils import get_context_from_pinecone_vdb, get_context_async, get_context_from_pinecone_vdb_v2
 from talmud_query.embed_utils import embed_text_openai_batch
-
+from talmud_query.db_utils import get_nearby_passages
 # load env variables
 from dotenv import load_dotenv
 import os
@@ -80,12 +82,45 @@ def get_queries_from_openai(query, model_name="gpt-4o", available_md=[], print_o
     except Exception as e:
         print(f"Error retrieving queries from OpenAI: {e}")
         return ""
+    
+@traceable
+def get_deep_queries_from_openai(query, model_name="gpt-4o", available_md=[], num_queries=5, chunk_desc="", openai_client=None):
+    QueryResponse = create_model(
+        'QueryResponse',
+        queries=(list[str], ...),
+        filter=(Optional[dict], None)
+    )
+
+    try:
+        response = openai_client.beta.chat.completions.parse(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT_DEEP_QUERIES},
+                {"role": "user", "content": USER_PROMPT_DEEP_QUERIES.format(
+                    chunk_desc=chunk_desc,
+                    num_alt_queries=num_queries,
+                    available_md=", ".join(available_md),
+                    book_names=", ".join(POSSIBLE_BOOKS),   
+                    query=query
+                )}
+            ],
+            response_format=QueryResponse,
+        )
+        response_text = response.choices[0].message.parsed.model_dump()
+
+        if PRINT_OUTPUT:
+            print("Raw text from get deep queries: ", response_text)
+
+        return response_text
+    except Exception as e:
+        print(f"Error retrieving deep queries from OpenAI: {e}")
+        return ""
 
 @traceable
 async def async_filter_context(query, context, model_name="gpt-4o-mini", text_field='english_text'):
-    async def filter_single_context(client, query, passage):
+    async def filter_consecutive_passages(client, query, passages):
         try:
-            context_text = f"Book: {passage['book_name']}, Page: {passage['page_number']}\n{passage[text_field]}"
+            context_text = "\n\n".join([f"Book: {p['book_name']}, Page: {p['page_number']}\n{p[text_field]}" for p in passages])
             response = await client.post(
                 url="https://api.openai.com/v1/chat/completions",
                 json={
@@ -97,30 +132,18 @@ async def async_filter_context(query, context, model_name="gpt-4o-mini", text_fi
                 },
                 headers={"Authorization": f"Bearer {OPENAI_API_KEY}"}
             )
-            
-            # Add response validation
-            response_json = response.json()
-            if 'error' in response_json:
-                print(f"OpenAI API Error: {response_json['error']}")
-                return passage
-                
-            if 'choices' not in response_json:
-                print(f"Unexpected API response format: {response_json}")
-                return passage
-                
-            raw_text = response_json["choices"][0]["message"]["content"]
-            return passage if raw_text.strip() == "YES" else None
-            
+            raw_text = response.json()["choices"][0]["message"]["content"]
+            return passages if raw_text.strip() == "YES" else None
         except Exception as e:
-            print(f"Error filtering passage: {str(e)}")
-            print(f"Response content: {response.text if 'response' in locals() else 'No response'}")
-            return passage  # Return the passage on error instead of failing
+            print(f"Error filtering passages: {e}")
+            return passages
 
     async with httpx.AsyncClient() as client:
-        tasks = [filter_single_context(client, query, passage) for passage in context]
-        filtered_passages = await asyncio.gather(*tasks)
+        # Assuming context is now an array of arrays, where each inner array contains consecutive passages
+        tasks = [filter_consecutive_passages(client, query, passage_group) for passage_group in context]
+        filtered_passage_groups = await asyncio.gather(*tasks)
 
-    return [passage for passage in filtered_passages if passage is not None]
+    return [passage for passage_group in filtered_passage_groups if passage_group is not None for passage in passage_group]
 
 @traceable
 def filter_context(query, context, model_name="gpt-4o-mini", text_field="english_text"):
@@ -152,82 +175,80 @@ def get_final_answer(query, context, model_name="gpt-4o-2024-08-06", print_outpu
         return ""
 
 @traceable
-def talmud_query_v1(
-    query, 
-    model_name="gpt-4o-2024-08-06", 
-    print_output=False, 
-    available_md=["book_name", "page_number"], 
-    k=40, 
-    num_alt_queries=5
-):
-    index_name = "talmud-test-index-openai"
-    namespace = "SWD-passages-openai"
-    
-    openai.api_key = OPENAI_API_KEY
-    openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
-    
-    run = get_current_run_tree()
-
-    query_alts = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_alt_queries, openai_client=openai_client)
-    context = get_context_from_pinecone_vdb(query_alts, index_name, namespace, k, print_output=print_output)
-    filtered_context = filter_context(query, context)
-    
-    if not filtered_context:
-        return [{
-            "answer": "No relevant passages were found. Please note that there is a lot of randomness in the responses, so you may want to try again. You can also try again with different wording.",
-            "relevant_passage_ids": []
-        }, run.id]
-    
-    final_answer = get_final_answer(query, filtered_context, model_name, print_output=print_output, openai_client=openai_client)
-
-    return [final_answer, run.id]
-
-@traceable
 def talmud_query_v2(
     query, 
     model_name="gpt-4o-2024-08-06", 
     print_output=False, 
     available_md=["book_name", "page_number"], 
     k=40, 
-    num_alt_queries=4
+    db_configs=DB_CONFIGS,
+    num_queries=5
 ):
-    index_name = "talmud-test-index-openai"
-    namespaces = [
-        "SWD-passages-openai", 
-        "SWD-passages-openai-bold"
-    ]
-    
-    # Add debugging for API keys
-    print("Debug - API Keys:")
-    print(f"OPENAI_API_KEY exists: {bool(OPENAI_API_KEY)}")
-    if OPENAI_API_KEY:
-        print(f"OPENAI_API_KEY starts with: {OPENAI_API_KEY[:4]}...")
-    else:
-        print("WARNING: OPENAI_API_KEY is not set!")
-    
     openai.api_key = OPENAI_API_KEY
     openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
-    
-    query_alts = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_alt_queries, openai_client=openai_client)   
-    filter = query_alts.get("filter")
+
+    query_alts = []
+    for db_config in db_configs:
+        query_alts.append(
+            {
+                "alt_queries": get_deep_queries_from_openai(query, model_name, available_md, num_queries, db_config["chunk_desc"], openai_client),
+                "index_name": db_config["index_name"],
+                "namespace": db_config["namespace"]
+            }
+        )
    
-    # embedded_query_list = [embed_text_openai(query_alts[key]) for key in query_alts if key.startswith("query")]
-    embedded_query_list = embed_text_openai_batch([query_alts[key] for key in query_alts if key.startswith("query")])
+    embedded_query_list = []
+    for query_alt in query_alts:
+        embedded_queries = embed_text_openai_batch([alt_query for alt_query in query_alt["alt_queries"]["queries"]])
+        embedded_query_list.append({
+            "embedded_queries": embedded_queries,
+            "index_name": query_alt["index_name"],
+            "namespace": query_alt["namespace"],
+            "filter": query_alt["alt_queries"]["filter"]
+        })
     
     contexts_list = []
-    for namespace in namespaces:
-        contexts_list.append(get_context_from_pinecone_vdb_v2(embedded_query_list, filter, index_name, namespace, k, print_output))
+    for embedded_query in embedded_query_list:
+        contexts_list.append(get_context_from_pinecone_vdb_v2(
+            embedded_query["embedded_queries"],
+            embedded_query["filter"],
+            embedded_query["index_name"],
+            embedded_query["namespace"],
+            k,
+            print_output
+        ))
     
     context = [item for sublist in contexts_list for item in sublist]
+
+    # add nearby passages for each passage in context
+    for passage in context:
+        context.extend(get_nearby_passages(passage["passage_id"], 10))
     
     # Remove duplicate passages by passage_id
     seen_ids = set()
     context = [passage for passage in context if not (passage['passage_id'] in seen_ids or seen_ids.add(passage['passage_id']))]
 
+    # make sure context is order by book_name and passage_number
+    context = sorted(context, key=lambda x: (x['book_name'], x['passage_number']))
+
+    # prepare chunks for filtering - consecutive passages should be in the same chunk
+    context_chunks_for_filterring = []
+    current_chunk = []
+    for passage in context:
+        current_chunk.append(passage)
+        if passage['book_name'] != context[0]['book_name'] or passage['passage_number'] - context[0]['passage_number'] > 2:
+            context_chunks_for_filterring.append(current_chunk)
+            current_chunk = []
+    if current_chunk:
+        context_chunks_for_filterring.append(current_chunk)
+
     print(f"Number of unique passages: {len(context)}")
+    print(f"Number of chunks for filtering: {len(context_chunks_for_filterring)}")
+    
     # Filter context asynchronously
-    filtered_context = filter_context(query, context)
+    filtered_context = filter_context(query, context_chunks_for_filterring)
     print(f"Number of filtered passages: {len(filtered_context)}")
+
 
     run = get_current_run_tree()
     

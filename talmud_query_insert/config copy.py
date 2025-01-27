@@ -1,5 +1,5 @@
 import os
-from .deep_prompts import (
+from deep_prompts import (
     CHUNK_DESC_ENG_PASSAGES,
     CHUNK_DESC_HEB_PASSAGES,
     CHUNK_DESC_ELUCIDATED_ENG_PASSAGES,
@@ -11,22 +11,8 @@ from .deep_prompts import (
     CHUNK_DESC_HEB_SEV_PASSAGES,
     CHUNK_DESC_ELUCIDATED_ENG_SEV_PASSAGES
 )
-
-# Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    print("WARNING: OPENAI_API_KEY is not set!")
-else:
-    print("OPENAI_API_KEY is set and starts with:", OPENAI_API_KEY[:4] + "...")
-
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-if not PINECONE_API_KEY:
-    print("WARNING: PINECONE_API_KEY is not set!")
-else:
-    print("PINECONE_API_KEY is set and starts with:", PINECONE_API_KEY[:4] + "...")
 
 # Configuration constants
 OPENAI_MODEL = 'text-embedding-ada-002'

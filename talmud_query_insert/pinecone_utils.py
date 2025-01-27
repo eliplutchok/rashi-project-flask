@@ -1,3 +1,4 @@
+
 import httpx
 from langsmith import traceable, Client
 import os
@@ -7,33 +8,18 @@ from talmud_query.prompts import *
 from talmud_query.config import *
 from talmud_query.embed_utils import embed_text_openai
 
-# Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
-
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-
 def get_index_endpoint(api_key=PINECONE_API_KEY, index_name=INDEX_NAME):
-    # More detailed validation
-    if not api_key or api_key.strip() == "":
-        raise ValueError("Invalid Pinecone API key. Please check your environment variables.")
-    if not index_name or index_name.strip() == "":
-        raise ValueError("Invalid index name.")
-        
     url = f"https://api.pinecone.io/indexes/{index_name}"
-    headers = {"Api-Key": api_key.strip()}  # Ensure the API key is properly formatted
-    
-    try:
-        response = httpx.get(url, headers=headers)
-        response.raise_for_status()
-        response_json = response.json()
+    headers = {"Api-Key": api_key}
 
-        if "host" not in response_json:
-            raise KeyError(f"'host' not found in the response: {response_json}")
-        
+    response = httpx.get(url, headers=headers)
+    response.raise_for_status()
+    response_json = response.json()
+
+    if "host" in response_json:
         return response_json["host"]
-    except httpx.HTTPError as e:
-        raise ValueError(f"Failed to connect to Pinecone: {str(e)}")
+    else:
+        raise KeyError(f"'host' not found in the response: {response_json}")
 
 
 @traceable

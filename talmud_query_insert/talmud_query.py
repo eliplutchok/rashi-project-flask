@@ -97,24 +97,11 @@ async def async_filter_context(query, context, model_name="gpt-4o-mini", text_fi
                 },
                 headers={"Authorization": f"Bearer {OPENAI_API_KEY}"}
             )
-            
-            # Add response validation
-            response_json = response.json()
-            if 'error' in response_json:
-                print(f"OpenAI API Error: {response_json['error']}")
-                return passage
-                
-            if 'choices' not in response_json:
-                print(f"Unexpected API response format: {response_json}")
-                return passage
-                
-            raw_text = response_json["choices"][0]["message"]["content"]
+            raw_text = response.json()["choices"][0]["message"]["content"]
             return passage if raw_text.strip() == "YES" else None
-            
         except Exception as e:
-            print(f"Error filtering passage: {str(e)}")
-            print(f"Response content: {response.text if 'response' in locals() else 'No response'}")
-            return passage  # Return the passage on error instead of failing
+            print(f"Error filtering passage: {e}")
+            return passage
 
     async with httpx.AsyncClient() as client:
         tasks = [filter_single_context(client, query, passage) for passage in context]
@@ -197,17 +184,9 @@ def talmud_query_v2(
         "SWD-passages-openai-bold"
     ]
     
-    # Add debugging for API keys
-    print("Debug - API Keys:")
-    print(f"OPENAI_API_KEY exists: {bool(OPENAI_API_KEY)}")
-    if OPENAI_API_KEY:
-        print(f"OPENAI_API_KEY starts with: {OPENAI_API_KEY[:4]}...")
-    else:
-        print("WARNING: OPENAI_API_KEY is not set!")
-    
     openai.api_key = OPENAI_API_KEY
     openai_client = wrap_openai(openai.OpenAI(api_key=OPENAI_API_KEY))
-    
+
     query_alts = get_queries_from_openai(query, model_name, available_md=available_md, print_output=print_output, num_queries=num_alt_queries, openai_client=openai_client)   
     filter = query_alts.get("filter")
    
